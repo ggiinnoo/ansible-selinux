@@ -1,0 +1,38 @@
+---
+
+# Check if the selinux is the same as in the hosts_var
+- name: Checking current selinux file
+  command: grep -F "SELINUX=" {{ selinuxConf }}
+  register: selinuxConfig
+  ignore_errors: yes
+
+# Setting selinux permission
+- name: Setting SElinux
+  selinux:
+    conf: "{{ selinuxConf }}"
+    policy: "{{ selinuxPolicy }}"
+    state: "{{ selinuxState }}"
+  when: "selinuxConfig.stdout.find('{{selinuxState}}') == -1"
+
+# Rebooting server and waiting for it to come back
+- name: Initialize a server reboot
+  command: /usr/bin/systemd-run --on-active=10 /usr/bin/systemctl reboot
+  become: yes
+  become_user: root
+  async: 1
+  poll: 0
+  ignore_errors: true
+  when: "selinuxConfig.stdout.find('{{selinuxState}}') == -1"
+
+# Wait for the server to come back online.
+- name: Waiting....
+  wait_for:
+    host: "{{ inventory_hostname }}"
+    state: started
+    port: "22"
+    delay: "40"
+    timeout: "300"
+    connect_timeout: "20"
+  delegate_to: 127.0.0.1
+  become: false
+  when: "selinuxConfig.stdout.find('{{selinuxState}}') == -1"

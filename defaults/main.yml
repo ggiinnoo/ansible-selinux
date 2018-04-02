@@ -1,0 +1,13 @@
+---
+
+# Setting the conf location incase the location is different
+selinuxConf: "/etc/selinux/config"
+
+# name of the SELinux policy to use (example: targeted) will be required if state is not disabled
+selinuxPolicy: "targeted"
+
+# Set the state of selinux:
+# enforcing
+# permissive
+# disabled
+selinuxState: "permissive"
