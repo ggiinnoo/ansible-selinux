@@ -1,20 +1,27 @@
 ---
+language: python
 sudo: required
 
 services:
   - docker
 
+env:
+  - OS_VERSION=7
+  - OS_VERSION=6
+
 before_install:
-  # Fetch base image and build new container
-  - sudo docker pull centos:7
-  - sudo docker build --rm=true --tag=travispoc .
+  - sudo docker pull centos:${OS_VERSION}
+
+install:
+  - sudo docker run --detach --volume="${PWD}":/etc/ansible/roles/yum-plugin-priorities:ro --name centos-${OS_VERSION} centos:${OS_VERSION} sleep 300
+  - sudo docker exec centos-${OS_VERSION} yum -y install epel-release
+  - sudo docker exec centos-${OS_VERSION} yum -y install ansible
 
 script:
-  # Run container in detached state
-  - sudo docker run --detach --privileged --volume="${PWD}":/etc/ansible/roles/role_under_test:ro --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro travispoc /usr/lib/systemd/systemd > /tmp/container_id
   # Check syntax of ansible playbook
-  - sudo docker exec "$(cat /tmp/container_id)" ansible-playbook /etc/ansible/roles/ansible-selinux/tests/test.yml --syntax-check
+  - sudo docker exec centos-${OS_VERSION} ansible-playbook /etc/ansible/roles/ansible-selinux/tests/test.yml --syntax-check
   # Run ansible playbook
-  - sudo docker exec "$(cat /tmp/container_id)" ansible-playbook /etc/ansible/roles/ansible-selinux/tests/test.yml
-  # Clean up
-  - sudo docker stop "$(cat /tmp/container_id)"
+  - sudo docker exec centos-${OS_VERSION} ansible-playbook /etc/ansible/roles/ansible-selinux/tests/test.yml
+
+after_script:
+  - sudo docker stop centos-${OS_VERSION}
